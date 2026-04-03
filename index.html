@@ -426,7 +426,7 @@
           <li>Confirm the destination URL and click <strong>Go</strong></li>
         </ol>
         <hr class="divider">
-        <p style="font-size:0.8rem;">This app does not collect or store any data. Your files are accessed directly in your browser using Google Drive API.</p>
+        <p style="font-size:0.8rem;">This app does not collect or store any data. Your files are accessed directly in your browser using Google Drive API. <a href="privacy-policy.html" style="color:#1a73e8;">Privacy policy</a></p>
       `;
     }
 
@@ -442,15 +442,12 @@
     function showConfirm(fileName, destURL) {
       document.getElementById('app').innerHTML = `
         ${logo()}
-        <h2>Confirm Redirect</h2>
+        <h2>Redirecting…</h2>
         <p class="filename">From: ${escapeHtml(fileName)}</p>
-        <p>This shortcut will open the following URL:</p>
+        <p>Opening the following URL:</p>
         <div class="url-box"><a href="${escapeHtmlAttr(destURL)}" target="_blank" rel="noopener noreferrer">${escapeHtml(destURL)}</a></div>
-        <div class="btn-row">
-          <button class="btn-primary" onclick="doRedirect(${JSON.stringify(destURL)})">Go to URL</button>
-          <button class="btn-cancel" onclick="history.back()">Cancel</button>
-        </div>
       `;
+      doRedirect(destURL);
     }
 
     function showError(htmlMessage, extraHtml) {
