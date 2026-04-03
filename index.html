@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none';
+                 script-src 'self' https://accounts.google.com 'unsafe-inline';
+                 connect-src https://www.googleapis.com https://accounts.google.com;
+                 frame-src https://accounts.google.com;
+                 style-src 'unsafe-inline';
+                 img-src 'self' data:;">
+  <title>Open URL Shortcut</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: #f8f9fa;
+      color: #202124;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 60px 16px;
+    }
+
+    #app {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+      padding: 2rem 2.5rem;
+      max-width: 520px;
+      width: 100%;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+
+    .logo svg { flex-shrink: 0; }
+
+    .logo-text {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: #5f6368;
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      color: #202124;
+    }
+
+    p { line-height: 1.6; color: #5f6368; margin-bottom: 0.75rem; }
+
+    .url-box {
+      background: #f1f3f4;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.875rem;
+      word-break: break-all;
+      color: #202124;
+      margin: 1rem 0;
+    }
+
+    .url-box a {
+      color: #1a73e8;
+      text-decoration: none;
+    }
+
+    .url-box a:hover { text-decoration: underline; }
+
+    .filename {
+      font-size: 0.8rem;
+      color: #80868b;
+      margin-bottom: 0.25rem;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      align-items: center;
+    }
+
+    .btn-primary {
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.6rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-primary:hover { background: #1557b0; }
+
+    .btn-cancel {
+      background: none;
+      border: none;
+      color: #1a73e8;
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 0.6rem 0.5rem;
+      text-decoration: none;
+    }
+
+    .btn-cancel:hover { text-decoration: underline; }
+
+    /* Loading spinner */
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #e8eaed;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      text-align: center;
+      color: #5f6368;
+      font-size: 0.9rem;
+    }
+
+    /* Error state */
+    .error-box {
+      border-left: 4px solid #d93025;
+      background: #fce8e6;
+      border-radius: 0 4px 4px 0;
+      padding: 0.75rem 1rem;
+      margin: 1rem 0;
+      color: #c5221f;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    /* Instructions */
+    ol {
+      padding-left: 1.25rem;
+      color: #5f6368;
+      line-height: 1.8;
+      font-size: 0.9rem;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #e8eaed;
+      margin: 1.5rem 0;
+    }
+
+    .warning-badge {
+      display: inline-block;
+      background: #fef7e0;
+      color: #b06000;
+      border: 1px solid #f9a825;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Content injected by JS -->
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    // -----------------------------------------------------------------------
+    // CONFIGURATION — paste your OAuth 2.0 Client ID from Google Cloud Console
+    // -----------------------------------------------------------------------
+    const CLIENT_ID = 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com';
+    const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+    // -----------------------------------------------------------------------
+    // State
+    // -----------------------------------------------------------------------
+    let fileId = null;
+    let accessToken = null;
+    let tokenClient = null;
+    let retryWithConsent = false;
+
+    // -----------------------------------------------------------------------
+    // Entry point
+    // -----------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      const params = new URLSearchParams(window.location.search);
+      const rawState = params.get('state');
+
+      if (!rawState) {
+        showInstructions();
+        return;
+      }
+
+      let state;
+      try {
+        state = JSON.parse(rawState);
+      } catch {
+        showError('Invalid state parameter received from Google Drive.');
+        return;
+      }
+
+      const ids = state.ids;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        showError('No file ID was provided by Google Drive.');
+        return;
+      }
+
+      fileId = ids[0];
+
+      // Show notice if multiple files were selected but only first will be opened
+      const multiNotice = ids.length > 1
+        ? `<p style="font-size:0.8rem;color:#b06000;margin-bottom:0.75rem;">
+             Note: ${ids.length} files were selected — only the first will be opened.
+           </p>`
+        : '';
+
+      showLoading('Signing in\u2026', multiNotice);
+      waitForGIS(requestToken);
+    }
+
+    // GIS loads asynchronously; poll until ready
+    function waitForGIS(cb) {
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+        cb();
+      } else {
+        setTimeout(() => waitForGIS(cb), 100);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // OAuth
+    // -----------------------------------------------------------------------
+    function requestToken() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: handleTokenResponse,
+        error_callback: handleTokenError,
+        prompt: retryWithConsent ? 'consent' : ''
+      });
+      tokenClient.requestAccessToken();
+    }
+
+    function handleTokenResponse(resp) {
+      if (resp.error) {
+        if (resp.error === 'access_denied') {
+          showError(
+            'Sign-in was cancelled.',
+            '<button class="btn-primary" onclick="retryAuth()">Try Again</button>'
+          );
+        } else {
+          showError('Authentication error: ' + resp.error);
+        }
+        return;
+      }
+      accessToken = resp.access_token;
+      showLoading('Reading file\u2026');
+      fetchFile(fileId);
+    }
+
+    function handleTokenError(err) {
+      if (err.type === 'popup_failed_to_open' || err.type === 'popup_blocked') {
+        showError(
+          'A sign-in popup was blocked by your browser. ' +
+          'Please allow popups for this page and try again.',
+          '<button class="btn-primary" onclick="retryAuth()">Try Again</button>'
+        );
+      } else {
+        showError('Sign-in failed: ' + (err.message || err.type || 'unknown error'));
+      }
+    }
+
+    function retryAuth() {
+      showLoading('Signing in\u2026');
+      requestToken();
+    }
+
+    // -----------------------------------------------------------------------
+    // Drive API
+    // -----------------------------------------------------------------------
+    async function fetchFile(id) {
+      try {
+        // 1. Fetch metadata (file name)
+        const metaResp = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?fields=name`,
+          { headers: { Authorization: 'Bearer ' + accessToken } }
+        );
+
+        if (!metaResp.ok) {
+          await handleDriveError(metaResp);
+          return;
+        }
+
+        const meta = await metaResp.json();
+        const fileName = meta.name || 'Unknown file';
+
+        // 2. Fetch raw file content
+        const contentResp = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`,
+          { headers: { Authorization: 'Bearer ' + accessToken } }
+        );
+
+        if (!contentResp.ok) {
+          await handleDriveError(contentResp);
+          return;
+        }
+
+        const content = await contentResp.text();
+        const url = parseURLFile(content);
+
+        if (!url) {
+          showError(
+            'No URL found in this file. ' +
+            'Make sure it is a valid Windows .url shortcut containing a <code>URL=</code> line.'
+          );
+          return;
+        }
+
+        // Validate URL
+        let parsed;
+        try {
+          parsed = new URL(url);
+        } catch {
+          showError('The URL in this file is not valid: <code>' + escapeHtml(url) + '</code>');
+          return;
+        }
+
+        // Protocol whitelist
+        if (parsed.protocol === 'javascript:') {
+          showError('This shortcut contains a <strong>javascript:</strong> URL which cannot be opened for security reasons.');
+          return;
+        }
+        if (parsed.protocol === 'file:') {
+          showError('This shortcut points to a local file (<code>file://</code>) which is not accessible from the web.');
+          return;
+        }
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          showError(
+            'Only <code>http://</code> and <code>https://</code> URLs are supported. ' +
+            'This file contains: <code>' + escapeHtml(parsed.protocol) + '</code>'
+          );
+          return;
+        }
+
+        showConfirm(fileName, url);
+
+      } catch (err) {
+        showError('Network error: ' + escapeHtml(err.message) + '. Check your internet connection.');
+      }
+    }
+
+    async function handleDriveError(resp) {
+      if (resp.status === 401) {
+        // Token expired — re-authenticate
+        retryWithConsent = true;
+        showLoading('Re-authenticating\u2026');
+        requestToken();
+        return;
+      }
+      const body = await resp.json().catch(() => ({}));
+      const msg = body.error?.message || resp.statusText || ('HTTP ' + resp.status);
+      if (resp.status === 403) {
+        showError('Access denied. You may not have permission to read this file. (' + escapeHtml(msg) + ')');
+      } else if (resp.status === 404) {
+        showError('File not found. It may have been deleted or moved.');
+      } else {
+        showError('Google Drive error (' + resp.status + '): ' + escapeHtml(msg));
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // .url file parser
+    // -----------------------------------------------------------------------
+    function parseURLFile(content) {
+      const lines = content.split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.toLowerCase().startsWith('url=')) {
+          return trimmed.substring(4).trim();
+        }
+      }
+      return null;
+    }
+
+    // -----------------------------------------------------------------------
+    // UI helpers
+    // -----------------------------------------------------------------------
+    function logo() {
+      return `<div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V10L14 3Z" fill="#E8F0FE"/>
+          <path d="M14 3V10H21L14 3Z" fill="#4285F4"/>
+          <path d="M5 19H19V10H14V5H5V19Z" fill="none"/>
+          <text x="8" y="17" font-family="Arial" font-size="7" fill="#1a73e8" font-weight="bold">.URL</text>
+        </svg>
+        <span class="logo-text">Open URL Shortcut</span>
+      </div>`;
+    }
+
+    function showInstructions() {
+      document.getElementById('app').innerHTML = `
+        ${logo()}
+        <h2>How to use</h2>
+        <p>This app opens <strong>.url</strong> shortcut files stored in Google Drive and redirects your browser to the URL they contain.</p>
+        <hr class="divider">
+        <ol>
+          <li>Upload a <code>.url</code> file to Google Drive</li>
+          <li>Right-click the file in Drive</li>
+          <li>Select <strong>Open with &rarr; Open URL Shortcut</strong></li>
+          <li>Confirm the destination URL and click <strong>Go</strong></li>
+        </ol>
+        <hr class="divider">
+        <p style="font-size:0.8rem;">This app does not collect or store any data. Your files are accessed directly in your browser using Google Drive API.</p>
+      `;
+    }
+
+    function showLoading(message, extra) {
+      document.getElementById('app').innerHTML = `
+        ${logo()}
+        <div class="spinner"></div>
+        <p class="loading-text">${escapeHtml(message)}</p>
+        ${extra || ''}
+      `;
+    }
+
+    function showConfirm(fileName, destURL) {
+      document.getElementById('app').innerHTML = `
+        ${logo()}
+        <h2>Confirm Redirect</h2>
+        <p class="filename">From: ${escapeHtml(fileName)}</p>
+        <p>This shortcut will open the following URL:</p>
+        <div class="url-box"><a href="${escapeHtmlAttr(destURL)}" target="_blank" rel="noopener noreferrer">${escapeHtml(destURL)}</a></div>
+        <div class="btn-row">
+          <button class="btn-primary" onclick="doRedirect(${JSON.stringify(destURL)})">Go to URL</button>
+          <button class="btn-cancel" onclick="history.back()">Cancel</button>
+        </div>
+      `;
+    }
+
+    function showError(htmlMessage, extraHtml) {
+      document.getElementById('app').innerHTML = `
+        ${logo()}
+        <h2>Error</h2>
+        <div class="error-box">${htmlMessage}</div>
+        ${extraHtml || ''}
+        <p style="margin-top:1rem;font-size:0.85rem;">
+          <a href="javascript:history.back()" style="color:#1a73e8;">Go back</a>
+        </p>
+      `;
+    }
+
+    function doRedirect(url) {
+      window.location.href = url;
+    }
+
+    // Safe HTML escaping
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function escapeHtmlAttr(str) {
+      return escapeHtml(str);
+    }
+  </script>
+</body>
+</html>
