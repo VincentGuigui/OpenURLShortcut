@@ -22,7 +22,13 @@
       "Bash(GCLOUD=\"/c/Users/vince/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud\" \"$GCLOUD\" alpha oauth2 clients create --help)",
       "Bash(GCLOUD=\"/c/Users/vince/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud\" \"$GCLOUD\" components install alpha --quiet)",
       "Bash(\"$GCLOUD\" alpha:*)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(python -c \"from PIL import Image, ImageDraw, ImageFont; print\\(''Pillow OK''\\)\")",
+      "Bash(python:*)",
+      "Bash(gh auth:*)",
+      "Bash(export PATH=$PATH:\"/c/Program Files/GitHub CLI\")",
+      "Bash(gh repo:*)",
+      "Bash(gh api:*)"
     ]
   }
 }
