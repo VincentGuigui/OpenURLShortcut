@@ -4,7 +4,25 @@
       "WebFetch(domain:developers.google.com)",
       "WebSearch",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(claude mcp:*)",
+      "Bash(where claude:*)",
+      "Bash(powershell -Command \"Get-Command claude -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Read(//c/Users/vince/AppData/Roaming/**)",
+      "Read(//c/Users/vince/.local/bin/**)",
+      "Read(//c/Users/vince/**)",
+      "Bash(\"/c/Users/vince/AppData/Roaming/Claude/claude-code/2.1.87/claude.exe\" mcp:*)",
+      "Bash(gcloud --version)",
+      "Bash(winget install:*)",
+      "Bash(GCLOUD=\"/c/Users/vince/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud\")",
+      "Bash(\"$GCLOUD\" auth:*)",
+      "Bash(\"$GCLOUD\" services:*)",
+      "Bash(\"$GCLOUD\" oauth-brands:*)",
+      "Bash(\"$GCLOUD\" iap:*)",
+      "Bash(GCLOUD=\"/c/Users/vince/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud\" \"$GCLOUD\" alpha oauth2 clients create --help)",
+      "Bash(GCLOUD=\"/c/Users/vince/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud\" \"$GCLOUD\" components install alpha --quiet)",
+      "Bash(\"$GCLOUD\" alpha:*)",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }
