@@ -2,23 +2,34 @@
 
 A Google Workspace Marketplace app that opens Windows .url shortcut files stored in Google Drive.
 
-## What it does
+## Usage
 
-When you open a .url file from Google Drive using this app, it reads the file, extracts the URL, shows you the destination, and redirects your browser to it after confirmation.
+Install the app from Google Workspace Marketplace. Once installed, right-click any .url file in Google Drive, select "Open with", and choose "Open URL Shortcut". The app shows you the destination URL and redirects your browser after confirmation.
 
-## How it works
+Supported file format:
 
-Google Drive passes the file ID to the app via a state parameter in the URL. The app authenticates with Google Identity Services using the drive.file scope, fetches the file content via the Drive REST API, parses the URL= line from the file, and redirects the browser.
+    [InternetShortcut]
+    URL=https://example.com
 
-Everything runs in the browser. There is no server, no database, and no data collection.
+Only http and https URLs are allowed. javascript:, file:, and other protocols are blocked.
 
-## Files
+The app does not collect or store any data. Everything runs in your browser.
+
+---
+
+## Development
+
+### How it works
+
+Google Drive passes the file ID to the app via a state parameter in the URL. The app authenticates with Google Identity Services using the drive.file scope, fetches the file content via the Drive REST API, parses the URL= line from the file, and redirects the browser. There is no server, no database, and no data collection.
+
+### Files
 
 - index.html — the entire application (HTML, CSS, JavaScript)
 - privacy-policy.html — privacy policy page required by the Marketplace listing
 - assets/ — icons, banner, and screenshot for the Marketplace store listing
 
-## Setup
+### Google Cloud setup
 
 1. Create a Google Cloud project and enable the Google Drive API and Google Workspace Marketplace SDK.
 2. Configure the OAuth consent screen with the drive.file scope.
@@ -27,7 +38,7 @@ Everything runs in the browser. There is no server, no database, and no data col
 5. Deploy index.html and privacy-policy.html to a static host (GitHub Pages works).
 6. Add your hosting domain to the OAuth client's Authorized JavaScript origins.
 
-## Local testing
+### Local testing
 
 Serve the project with any static file server on port 8080:
 
@@ -35,15 +46,6 @@ Serve the project with any static file server on port 8080:
 
 Testing with drive.file scope requires going through the actual Drive "Open With" flow. For direct file ID testing, temporarily switch the SCOPES constant to https://www.googleapis.com/auth/drive.readonly.
 
-## OAuth scope
+### OAuth scope
 
-drive.file — grants access only to files the user explicitly opens with this app. This is not a sensitive scope and does not require a Google security audit for Marketplace publication.
-
-## Supported file format
-
-Standard Windows Internet Shortcut format:
-
-    [InternetShortcut]
-    URL=https://example.com
-
-Only http and https URLs are allowed. javascript:, file:, and other protocols are blocked.
+drive.file grants access only to files the user explicitly opens with this app. This is not a sensitive scope and does not require a Google security audit for Marketplace publication.
